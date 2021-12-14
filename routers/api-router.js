@@ -13,19 +13,14 @@ router.get('/blogs', (request, response) => {
 
 router.post('/blogs', async (request, response) => {
   const { title, author, url, likes } = request.body;
-  const token = getTokenFrom(request);
-  const decodedToken = jwt.verify(token, process.env.SECRET);
-  if (!token || !decodedToken.id) {
-    return response.status(401).json({ error: 'token missing or invalid' });
-  }
-  const user = await User.findById(decodedToken.id);
+  const user = request.user;
   if (!title || !author || !url) {
     response.status(400).send('Bad Request');
     return;
   }
   const blog = new Blog({ title, author, url, likes, user: user._id });
   const result = await blog.save();
-  user.notes = user.notes.concat(result._id);
+  user.posts = user.posts.concat(result._id);
   await user.save();
   response.status(201).json(result);
 });
@@ -41,6 +36,11 @@ router.post('/like/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const post = Blog.findById(req.params.id);
+    if (post.user.toString() !== req.user._id.toString()) {
+      res.status(401).send("Can't delete post");
+      return;
+    }
     await Blog.deleteOne({ _id: req.params.id });
     res.send('Post Deleted');
   } catch (error) {
@@ -49,11 +49,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-
-const getTokenFrom = (request) => {
-  const authorization = request.get('authorization');
-  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
-    return authorization.substring(7);
-  }
-  return null;
-};

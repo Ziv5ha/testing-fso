@@ -5,8 +5,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
-const REFRESHTOKENS = [];
-
 router.post('/register', async (req, res, next) => {
   try {
     const { username, name, password } = req.body;
@@ -30,7 +28,6 @@ router.post('/register', async (req, res, next) => {
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const user = await User.findOne({ username });
-  console.log(user);
   if (!user) {
     res.status(404).send('cannot find use');
   }
@@ -57,20 +54,6 @@ router.get('/users', async (req, res) => {
     id: _id,
   }));
   res.send(users);
-});
-
-router.post('/logout', (req, res) => {
-  const { token } = req.body;
-  if (!token) {
-    res.status(400).send('Refresh Token Required');
-    return;
-  }
-  try {
-    REFRESHTOKENS.splice(REFRESHTOKENS.indexOf(token), 1);
-    res.send('User Logged Out Successfully');
-  } catch (error) {
-    res.status(400).send('Invalid Refresh Token');
-  }
 });
 
 module.exports = router;
