@@ -36,8 +36,8 @@ router.post('/like/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const post = Blog.findById(req.params.id);
-    if (post.user.toString() !== req.user._id.toString()) {
+    const post = await Blog.findById(req.params.id);
+    if (!post.user || post.user.toString() !== req.user._id.toString()) {
       res.status(401).send("Can't delete post");
       return;
     }

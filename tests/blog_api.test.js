@@ -60,19 +60,31 @@ const postToAdd = {
   author: 'GLaDOS',
   url: 'https://theportalwiki.com/wiki/GLaDOS_voice_lines',
 };
+let token;
 beforeEach(async () => {
   await Blog.deleteMany({});
   await Blog.insertMany(initialPosts);
 });
 
+beforeAll(async () => {
+  const login = await api
+    .post('/user/login')
+    .send({ username: 'admin', password: 'admin' });
+  token = login.body.accessToken;
+});
+
 describe('DB initialized correctly', () => {
   test('The correct number of blogs are stored', async () => {
-    const res = await api.get('/api/blogs');
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     expect(res.body.length).toBe(initialPosts.length);
   });
 
   test('Each blog post has an ID', async () => {
-    const res = await api.get('/api/blogs');
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     let eachPostHasId = true;
     res.body.forEach((post) => {
       if (eachPostHasId) {
@@ -86,24 +98,42 @@ describe('DB initialized correctly', () => {
 });
 describe('adding a post', () => {
   test('should add a post to the DB', async () => {
-    await api.post('/api/blogs').send(postToAdd);
-    const res = await api.get('/api/blogs');
+    await api
+      .post('/api/blogs')
+      .send(postToAdd)
+      .set('authorization', `bearer ${token}`);
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     expect(res.body.length).toBe(initialPosts.length + 1);
   });
   test('should a the correct post', async () => {
-    await api.post('/api/blogs').send(postToAdd);
-    const res = await api.get('/api/blogs');
+    await api
+      .post('/api/blogs')
+      .send(postToAdd)
+      .set('authorization', `bearer ${token}`);
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     let postAdded = Boolean(filterpostToAdd(res.body));
     expect(postAdded).toBe(true);
   });
   test('should have 0 like if no likes were suplied', async () => {
-    await api.post('/api/blogs').send(postToAdd);
-    const res = await api.get('/api/blogs');
+    await api
+      .post('/api/blogs')
+      .send(postToAdd)
+      .set('authorization', `bearer ${token}`);
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     const postAdded = filterpostToAdd(res.body);
     expect(postAdded[0].likes).toBe(0);
   });
   test('should return Bad Request if no title or url were given', async () => {
-    const res = await api.post('/api/blogs').send();
+    const res = await api
+      .post('/api/blogs')
+      .set('authorization', `bearer ${token}`)
+      .send();
     expect(res.status).toBe(400);
     expect(res.text).toBe('Bad Request');
   });
@@ -111,14 +141,35 @@ describe('adding a post', () => {
 
 describe('deleting a post', () => {
   test('should delete a post', async () => {
-    const allPosts = await api.get('/api/blogs');
+    await api
+      .post('/api/blogs')
+      .send(postToAdd)
+      .set('authorization', `bearer ${token}`);
+    const allPosts = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
+    const id = allPosts.body[allPosts.body.length - 1]._id;
+    await api.delete(`/api/${id}`).set('authorization', `bearer ${token}`);
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
+    expect(res.body.length).toBe(allPosts.body.length - 1);
+  });
+  test('should return error with wrong user', async () => {
+    const allPosts = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     const id = allPosts.body[0]._id;
-    await api.delete(`/api/${id}`);
-    const res = await api.get('/api/blogs');
-    expect(res.body.length).toBe(initialPosts.length - 1);
+    const res = await api
+      .delete(`/api/${id}`)
+      .set('authorization', `bearer ${token}`);
+    expect(res.status).toBe(401);
+    expect(res.text).toBe("Can't delete post");
   });
   test('should return error with wrong id', async () => {
-    const res = await api.delete(`/api/5`);
+    const res = await api
+      .delete(`/api/5`)
+      .set('authorization', `bearer ${token}`);
     expect(res.status).toBe(404);
     expect(res.text).toBe('Post Not Found');
   });
@@ -126,14 +177,20 @@ describe('deleting a post', () => {
 
 describe('liking a post', () => {
   test('should update the likes on the post', async () => {
-    const allPosts = await api.get('/api/blogs');
+    const allPosts = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     const id = allPosts.body[0]._id;
-    await api.post(`/api/like/${id}`);
-    const res = await api.get('/api/blogs');
+    await api.post(`/api/like/${id}`).set('authorization', `bearer ${token}`);
+    const res = await api
+      .get('/api/blogs')
+      .set('authorization', `bearer ${token}`);
     expect(res.body[0].likes).toBe(allPosts.body[0].likes + 1);
   });
   test('should return error with wrong id', async () => {
-    const res = await api.post(`/api/like/5`);
+    const res = await api
+      .post(`/api/like/5`)
+      .set('authorization', `bearer ${token}`);
     expect(res.status).toBe(404);
     expect(res.text).toBe('Post Not Found');
   });
